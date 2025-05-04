@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>我的足跡地圖 - 台灣縣市</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+      crossorigin=""
+    ></script>
+    <script
+      src="{{ url_for('static', filename='js/map_interaction.js') }}"
+      defer
+    ></script>
+    <style>
+      /* Copy CSS styles from previous version here */
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+          Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue',
+          sans-serif;
+        margin: 0;
+        display: flex;
+        min-height: 100vh;
+        padding: 15px;
+        box-sizing: border-box;
+        background-color: #f0f2f5;
+      }
+      .sidebar {
+        width: 280px;
+        flex-shrink: 0;
+        margin-right: 20px;
+        padding: 20px;
+        border: 1px solid #d9d9d9;
+        background-color: #ffffff;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .map-area {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      #map-container {
+        flex-grow: 1;
+        border: 1px solid #d9d9d9;
+        min-height: 500px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .sidebar h2 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 10px;
+        font-size: 1.1em;
+        color: #333;
+      }
+      .sidebar form {
+        margin-bottom: 25px;
+      }
+      .sidebar ul {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 15px 0;
+        max-height: 280px;
+        overflow-y: auto;
+        border: 1px solid #f0f0f0;
+        padding: 10px;
+        background-color: #fff;
+        border-radius: 4px;
+      }
+      .sidebar li {
+        margin-bottom: 6px;
+        padding: 4px 0;
+        border-bottom: 1px dashed #f0f0f0;
+      }
+      .sidebar li:last-child {
+        border-bottom: none;
+      }
+      .sidebar li.empty-message {
+        color: #888;
+        font-style: italic;
+        border-bottom: none;
+        text-align: center;
+        padding: 15px 0;
+      }
+      .sidebar select,
+      .sidebar button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 8px;
+        box-sizing: border-box;
+        border-radius: 4px;
+        border: 1px solid #d9d9d9;
+        font-size: 0.95em;
+      }
+      .sidebar select:focus,
+      .sidebar button:focus {
+        border-color: #40a9ff;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+      }
+      .sidebar button {
+        cursor: pointer;
+        background-color: #1890ff;
+        color: white;
+        border-color: #1890ff;
+        transition: background-color 0.3s ease;
+      }
+      .sidebar button:hover {
+        background-color: #40a9ff;
+        border-color: #40a9ff;
+      }
+      .sidebar a {
+        text-decoration: none;
+      }
+      .sidebar a button {
+        background-color: #ff4d4f;
+        color: white;
+        border: none;
+      }
+      .sidebar a button:hover {
+        background-color: #f5222d;
+      }
+      .sidebar .visited-list-container {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      .sidebar .clear-button-container {
+        margin-top: auto;
+        padding-top: 15px;
+        border-top: 1px solid #f0f0f0;
+      }
+      .map-area h2 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+        color: #333;
+      }
+      #feedback-message {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #4caf50;
+        color: white;
+        padding: 12px 25px;
+        border-radius: 5px;
+        z-index: 10000;
+        display: none;
+        opacity: 0;
+        transition: opacity 0.5s ease-out;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+      #feedback-message.error {
+        background-color: #f44336;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <h2>新增縣市</h2>
+      <form method="POST" action="{{ url_for('index') }}">
+        <select id="area-select" name="area" required>
+          <option value="" disabled selected>-- 請選擇縣市 --</option>
+          {% for area in available_areas %}
+          <option value="{{ area }}">{{ area }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">透過選單新增</button>
+      </form>
+      <hr style="border: none; border-top: 1px solid #f0f0f0; margin: 20px 0" />
+      <div class="visited-list-container">
+        <h2>
+          已訪問區域 (<span id="visited-count">{{ visited_areas|length }}</span
+          >)
+        </h2>
+        <ul id="visited-list">
+          {% for area in visited_areas %}
+          <li>{{ area }}</li>
+          {% else %}
+          <li class="empty-message">尚未新增任何區域</li>
+          {% endfor %}
+        </ul>
+        <div class="clear-button-container">
+          <a href="{{ url_for('clear_visited') }}">
+            <button>清除所有紀錄</button>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="map-area">
+      <h2>地圖 (直接點擊縣市新增)</h2>
+      <div id="map-container">{{ map_html | safe }}</div>
+    </div>
+    <div id="feedback-message"></div>
+  </body>
+</html>
